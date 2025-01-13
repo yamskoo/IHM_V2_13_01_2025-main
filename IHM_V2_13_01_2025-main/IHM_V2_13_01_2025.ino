@@ -12,6 +12,8 @@
 #include <MeMegaPi.h>
 #include <Wire.h>
 
+//yamine est la
+
 struct Trash {
   int row;
   int column;
