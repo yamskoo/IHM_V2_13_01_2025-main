@@ -195,7 +195,7 @@ void processCommand(const String &command)
 {
   if (command == "START_AUTO_TEST") {
     Serial.println("[BLE] START_AUTO_TEST reçu");
-    sendNotification("Auto-test:DEMARRAGE");
+    sendNotification("Status:DEMARRAGE"); //change
     autoTestInProgress = true;
     standardInProgress = false;
     isPaused           = false;
@@ -204,12 +204,48 @@ void processCommand(const String &command)
 
   } else if (command.startsWith("STANDARD:TRASHES=")) {
     parseStandardTrashes(command);
+  } else if (command.startsWith("DETECTION:NEWTRASH=")) { //change ajouter cette condition
+    Serial.println("[INFO] Détection => NEWTRASH");
+    // Extraire la partie après '='
+    // => ex: "3,3,Ve"
+    String payload = command.substring(strlen("DETECTION:NEWTRASH="));
+    payload.trim();
 
+    // Séparer sur la virgule
+    // On doit trouver row, col, CT
+    // => ex: row=3, col=3, CT="Ve"
+    int firstCommaIndex  = payload.indexOf(',');
+    int secondCommaIndex = payload.indexOf(',', firstCommaIndex+1);
+
+    if (firstCommaIndex == -1 || secondCommaIndex == -1) {
+      Serial.println("[ERR] Format DETECTION:NEWTRASH invalide => " + payload);
+      return;
+    }
+
+    String rowStr  = payload.substring(0, firstCommaIndex);
+    String colStr  = payload.substring(firstCommaIndex+1, secondCommaIndex);
+    String ctStr   = payload.substring(secondCommaIndex+1);
+    
+    int rowVal = rowStr.toInt(); 
+    int colVal = colStr.toInt(); 
+    ctStr.trim();  // "Ve", "Tr", etc.
+
+    Serial.print("[INFO] detection(...) param => row=");
+    Serial.print(rowVal);
+    Serial.print(", col=");
+    Serial.print(colVal);
+    Serial.print(", CT=");
+    Serial.println(ctStr);
+
+    detection(rowVal, colVal, ctStr);
+    // => appelle ta fonction detection(int trashRow, int trashColumn, String CT);
+    
   } else if (command.startsWith("STANDARD:CENTERS=")) {
     parseStandardCenters(command);
 
   } else if (command == "START_STANDARD") {
     Serial.println("[BLE] START_STANDARD reçu");
+    sendNotification("Status:DEMARRAGE"); //change faut ajouter
     // On commence par ETAPE_0:Debut si vous voulez
     sendNotification("ETAPE_0:Debut");
     standardInProgress = true;
@@ -221,7 +257,7 @@ void processCommand(const String &command)
     // Met en pause
     if ((autoTestInProgress || standardInProgress) && !isPaused && !finished) {
       isPaused = true;
-      sendNotification("Auto-test:PAUSE");
+      sendNotification("Status:PAUSE"); //change
     }
     else {
       Serial.println("[WARN] Scénario inexistant ou déjà en pause");
@@ -231,7 +267,7 @@ void processCommand(const String &command)
     // Sort de la pause
     if ((autoTestInProgress || standardInProgress) && isPaused && !finished) {
       isPaused = false;
-      sendNotification("Auto-test:RESUME");
+      sendNotification("Status:RESUME"); //change
     }
     else {
       Serial.println("[WARN] Impossible de RESUME");
@@ -243,9 +279,9 @@ void processCommand(const String &command)
     isPaused           = false;
     currentStep        = -1;
     finished           = false;
-    sendNotification("Auto-test:RESET");
+    sendNotification("Status:RESET"); //change
     Serial.println("[INFO] Réinitialisé.");
-  } else if (command == "LEVER") {
+  } else if (command == "LEVER") { 
     autoTestInProgress = false;
     standardInProgress = false;
     isPaused           = false;
@@ -274,7 +310,7 @@ void processCommand(const String &command)
     isPaused           = false;
     currentStep        = -1;
     finished           = true;
-    sendNotification("Auto-test:STOP");
+    sendNotification("Status:STOP"); //change
     Serial.println("[INFO] Scénario stoppé.");
 
   } else {
@@ -349,7 +385,7 @@ void doAutoTestStep() {
   sendNotification("ETAPE_6:Fin");
   if (finished) {
     Serial.println("[ETAPE_7] Fin => finished=true");
-    sendNotification("Auto-test:TERMINE");
+    sendNotification("Status:TERMINE"); //change
     autoTestInProgress = false;
     finished = true;
   }
@@ -380,19 +416,27 @@ void doStandardScenario()
   selectionSort(trashItems, NUM_TRASHES);
 
   // On appelle successivement trash1, trash2, trash3
-  // EXACTEMENT votre code existant
-  trash1();
-  checkPause();
-  if (finished) return;
+  // change START HERE AND STOP AFTER
+  if (actualNumTrashes >= 1) {
+    trash1();
+    checkPause();
+    if (finished) return;
+  }
 
-  trash2();
-  checkPause();
-  if (finished) return;
+  // On appelle trash2() si on a au moins 2 déchets
+  if (actualNumTrashes >= 2) {
+    trash2();
+    checkPause();
+    if (finished) return;
+  }
 
-  trash3();
-  checkPause();
-  if (finished) return;
-
+  // On appelle trash3() si on a 3 déchets
+  if (actualNumTrashes >= 3) {
+    trash3();
+    checkPause();
+    if (finished) return;
+  }
+  //Change STOP HERE
   // A la fin
   finished = true;
   standardInProgress = false;
@@ -485,7 +529,7 @@ void checkPause() {
 
   if (isPaused) {
     Serial.println("[INFO] Robot en pause. En attente de commande RESUME...");
-    sendNotification("Robot:PAUSE");
+    sendNotification("Status:PAUSE"); //change
     // stop immediat
     motorL.stop();
     motorR.stop();
@@ -508,7 +552,7 @@ void checkPause() {
     }
 
     Serial.println("[INFO] Reprise du robot.");
-    sendNotification("Robot:RESUME");
+    sendNotification("Status:RESUME");//change
   }
 
   if (finished) {
@@ -830,7 +874,7 @@ String takeTrash(const char* direction, int sensMove){
     sendNotification(msg);
   } 
   else if (autoTestInProgress){
-    String msg = "Auto-test:DECHET=" + detectedColor;
+    String msg = "Status:DECHET=" + detectedColor; //change
     sendNotification(msg);
   }
 
